@@ -122,7 +122,20 @@ def update_page(
     content: str,
     summary: str,
     dry_run: bool = False,
-):
+    ):  
+    """
+    Save a new version of a MediaWiki page.
+
+    ⚠️ Only use this tool when the user clearly asks to update or edit a page.
+    ⚠️ The `content` must be written in MediaWiki wikitext format, not Markdown or plain text.
+
+    Parameters:
+    - title: the exact name of the page to update
+    - content: full wikitext of the new content
+    - summary: edit summary shown in the page history
+    - dry_run: if true, preview the update without saving
+    """
+
     logger.info("update_page called", extra={"title": title, "summary": summary})
     params = UpdatePageInput(
         title=title, content=content, summary=summary, dry_run=dry_run
