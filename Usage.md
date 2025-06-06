@@ -40,35 +40,11 @@ make container-ip
 
 If you need to modify the network configuration, edit the `docker-compose.yml` file and adjust the subnet and IP address settings.
 
-## Command Line Arguments
+## Server Configuration
 
-As an alternative to environment variables, you can also pass configuration options as command line arguments:
-
-```bash
-python mcp_mediawiki.py --api-host=wiki.example.com --api-path=/w/ --username=mcp-bot --password=secret-password --use-https=true
-```
-
-When using Docker, you can pass these arguments to the container:
-
-```bash
-docker run -p 8000:8000 mcp-mediawiki --api-host=wiki.example.com --username=mcp-bot
-```
-
-Or use the Makefile for convenience:
-
-```bash
-make run-args ARGS="--api-host=wiki.example.com --username=mcp-bot"
-```
-
-The following arguments are supported:
-
-- `--api-host`: MediaWiki API hostname
-- `--api-path`: MediaWiki API path
-- `--username`: Bot username
-- `--password`: Bot password
-- `--use-https`: Use HTTPS connection (`true` or `false`)
-
-Command line arguments take precedence over environment variables.
+Create a `.env` file with your MediaWiki connection details as shown above. The
+server no longer accepts command line options; all configuration is read from the
+environment.
 
 ## Running the server
 

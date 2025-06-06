@@ -182,8 +182,8 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Run the application
-CMD ["python", "mcp_mediawiki.py"]
+# Run the application with uvicorn
+CMD ["uvicorn", "mcp_mediawiki:app", "--host", "0.0.0.0", "--port", "8000"]
 This Dockerfile sets up a Python environment, installs dependencies, and runs your mcp_mediawiki application.
 
 ### docker-compose.yml
@@ -281,5 +281,5 @@ This endpoint allows users to search for wiki pages matching a query string.
 
 1. Open the repository in VSCode.
 2. Copy `.env.example` to `.env` and supply your MediaWiki credentials.
-3. Run `python mcp_mediawiki.py` from the integrated terminal or use `docker compose up --build`.
+3. Run `python mcp_mediawiki.py` from the integrated terminal or use `docker compose up --build`. The server is served by **uvicorn**.
 4. Access the server at `http://localhost:8000`.
