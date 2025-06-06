@@ -72,9 +72,17 @@ class PageMetadata(BaseModel):
 
 
 class PageInfo(BaseModel):
-    title: str
+    name: str
     content: str
     metadata: PageMetadata
+
+
+class UpdatePageResponse(BaseModel):
+    status: str
+    title: str
+    url: str | None = None
+    content: str | None = None
+    summary: str | None = None
 
 
 # Mount the Streamable HTTP server at /mcp
@@ -86,7 +94,7 @@ def get_page(title: str) -> PageInfo:
     logger.info("get_page tool called", extra={"title": title})
     page = site.pages[title]
     if not page.exists:
-        raise ValueError(f"Page '{title}' not found")
+        return {"error": f"Page '{title}' not found"}
 
     first_rev = next(page.revisions())
     categories = [c.name for c in page.categories()]
@@ -95,7 +103,7 @@ def get_page(title: str) -> PageInfo:
         last_modified = datetime(*last_modified[:6]).isoformat()
 
     return PageInfo(
-        title=title,
+        name=title,
         content=page.text(),
         metadata=PageMetadata(
             url=f"{SCHEME}://{HOST}{PATH}index.php/{title}",
@@ -121,20 +129,20 @@ def update_page(
     )
 
     if params.dry_run:
-        return {
-            "status": "dry-run",
-            "title": params.title,
-            "content": params.content,
-            "summary": params.summary,
-        }
+        return UpdatePageResponse(
+            status="dry-run",
+            title=params.title,
+            content=params.content,
+            summary=params.summary,
+        )
 
     page = site.pages[params.title]
     page.save(text=params.content, summary=params.summary)
-    return {
-        "status": "success",
-        "title": params.title,
-        "url": f"{SCHEME}://{HOST}/wiki/{params.title}",
-    }
+    return UpdatePageResponse(
+        status="success",
+        title=params.title,
+        url=f"{SCHEME}://{HOST}/wiki/{params.title}",
+    )
 
 
 @mcp.tool(description="Search wiki pages by title keyword")
@@ -151,7 +159,12 @@ def search_pages(query: str, limit: int = 5):
 @mcp.tool(description="Get basic server configuration and version info")
 def server_status():
     logger.info("server_status called")
-    version = site.site_info.get("generator")
+    if hasattr(site, "site_info"):
+        version = site.site_info.get("generator")
+    elif hasattr(site, "site"):
+        version = site.site.get("generator")
+    else:
+        version = None
     return {
         "host": HOST,
         "path": PATH,
