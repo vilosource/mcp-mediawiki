@@ -17,10 +17,17 @@ MW_API_PATH=/wiki/
 MW_USE_HTTPS=true
 MW_BOT_USER=mcp-bot
 MW_BOT_PASS=secret-password
-MW_WRITE_TOKEN=changeme
 ```
 
 ## Running the server
+
+### With Docker Compose
+
+```bash
+docker compose up --build
+```
+
+### Without Compose
 
 ```bash
 docker run --env-file .env mcp-mediawiki
@@ -35,5 +42,12 @@ mcp read wiki://Main_Page
 Update a page using the `update_page` tool:
 
 ```bash
-mcp run update_page --title Main_Page --content "New text" --summary "bot edit" --token "$MW_WRITE_TOKEN"
+mcp run update_page --title Main_Page --content "New text" --summary "bot edit"
 ```
+
+## Using with VSCode
+
+1. Open this folder in VSCode.
+2. Copy `.env.example` to `.env` and adjust the values for your wiki.
+3. Use the integrated terminal to run `python mcp_mediawiki.py` or `docker compose up --build`.
+4. The server will be available at `http://localhost:8000`.
