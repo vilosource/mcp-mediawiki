@@ -1,3 +1,4 @@
 mcp[cli]
 mwclient
 python-dotenv
+fastapi
