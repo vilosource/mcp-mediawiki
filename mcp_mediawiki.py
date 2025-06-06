@@ -10,7 +10,6 @@ PATH = os.getenv("MW_API_PATH", "/wiki/")
 USE_HTTPS = os.getenv("MW_USE_HTTPS", "true").lower() == "true"
 BOT_USER = os.getenv("MW_BOT_USER")
 BOT_PASS = os.getenv("MW_BOT_PASS")
-WRITE_TOKEN = os.getenv("MW_WRITE_TOKEN")
 
 SCHEME = "https" if USE_HTTPS else "http"
 
@@ -33,7 +32,8 @@ def get_page(title: str):
     if not page.exists:
         return {"error": f"Page '{title}' not found"}
     return {
-        "id": f"wiki:{title}",
+        "@id": f"wiki://{title}",
+        "@type": "Document",
         "name": title,
         "content": page.text(),
         "metadata": {
@@ -45,9 +45,7 @@ def get_page(title: str):
 
 
 @mcp.tool()
-def update_page(title: str, content: str, summary: str, token: str):
-    if WRITE_TOKEN and token != WRITE_TOKEN:
-        raise PermissionError("Invalid write token")
+def update_page(title: str, content: str, summary: str):
     page = site.pages[title]
     page.save(text=content, summary=summary)
     return {

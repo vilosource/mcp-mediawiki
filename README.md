@@ -27,7 +27,8 @@ Example response:
 
 ```json
 {
-  "id": "wiki:DevOps",
+  "@id": "wiki://DevOps",
+  "@type": "Document",
   "name": "DevOps",
   "content": "Full wikitext...",
   "metadata": {
@@ -41,20 +42,21 @@ Example response:
 
 ### `update_page`
 
-Tool for creating or editing pages. It requires a `token` parameter that must match the `MW_WRITE_TOKEN` environment variable.
+Tool for creating or editing pages. No authentication is required when running locally.
 
 ```json
 {
   "title": "DevOps",
   "content": "== New Section ==\nContent here...",
-  "summary": "Updated based on discussion",
-  "token": "<MW_WRITE_TOKEN>"
+  "summary": "Updated based on discussion"
 }
 ```
 
 ## Authentication
 
-* Uses bot accounts with write permissions configured in `LocalSettings.php`:
+This server runs locally so no additional authentication is required. It is
+recommended to create a bot account with write permissions configured in
+`LocalSettings.php`:
 
 ```php
 $wgGroupPermissions['bot']['edit'] = true;
@@ -125,7 +127,8 @@ def get_page(title: str):
     if not page.exists:
         return {"error": f"Page '{title}' not found"}
     return {
-        "id": f"wiki:{title}",
+        "@id": f"wiki://{title}",
+        "@type": "Document",
         "name": title,
         "content": page.text(),
         "metadata": {
@@ -136,9 +139,7 @@ def get_page(title: str):
     }
 
 @mcp.tool()
-def update_page(title: str, content: str, summary: str, token: str):
-    if token != os.environ.get("MW_WRITE_TOKEN"):
-        raise PermissionError("invalid token")
+def update_page(title: str, content: str, summary: str):
     page = site.pages[title]
     page.save(text=content, summary=summary)
     return {
@@ -184,6 +185,27 @@ EXPOSE 8000
 # Run the application
 CMD ["python", "mcp_mediawiki.py"]
 This Dockerfile sets up a Python environment, installs dependencies, and runs your mcp_mediawiki application.
+
+### docker-compose.yml
+
+Use Docker Compose for easier local development:
+
+```yaml
+version: '3.9'
+services:
+  mcp-mediawiki:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+```
+
+Start the server with:
+
+```bash
+docker compose up --build
+```
 services.duq.edu
 +2
 instructure.com
@@ -210,10 +232,7 @@ def update_page(title, content, summary):
         "content": content,
         "summary": summary
     }
-    headers = {
-        "Authorization": "Bearer YOUR_TOKEN"
-    }
-    response = requests.post("http://localhost:8000/v1/write", json=payload, headers=headers)
+    response = requests.post("http://localhost:8000/v1/write", json=payload)
     print(response.json())
 
 def main():
@@ -257,3 +276,10 @@ def search_pages(query: str = Query(..., min_length=1)):
 This endpoint allows users to search for wiki pages matching a query string.
 
 
+
+## Using in VSCode
+
+1. Open the repository in VSCode.
+2. Copy `.env.example` to `.env` and supply your MediaWiki credentials.
+3. Run `python mcp_mediawiki.py` from the integrated terminal or use `docker compose up --build`.
+4. Access the server at `http://localhost:8000`.
