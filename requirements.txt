@@ -1,0 +1,3 @@
+mcp[cli]
+mwclient
+python-dotenv
