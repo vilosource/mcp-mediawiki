@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from typing import Annotated
+from typing import Annotated, List, Dict
 
 from dotenv import load_dotenv
 import mwclient
@@ -44,13 +44,44 @@ def get_site() -> mwclient.Site:
 site = get_site()
 
 
-class UpdatePageInput(BaseModel):
-    """Input model for updating or creating a page."""
+class PageMetadata(BaseModel):
+    """Metadata describing a wiki page."""
 
-    title: Annotated[str, Field(min_length=1, description="Wiki page title")]
-    content: Annotated[str, Field(description="Wikitext content to save")]
-    summary: Annotated[str, Field(description="Edit summary")]
-    dry_run: Annotated[bool, Field(False, description="Preview the edit without saving")]
+    url: Annotated[str, Field(description="Direct URL to the page")]
+    last_modified: Annotated[str, Field(description="Timestamp of the last revision")]
+    namespace: Annotated[int, Field(description="Namespace identifier")]
+    length: Annotated[int, Field(description="Size of the page in bytes")]
+    protection: Annotated[Dict, Field(description="Protection settings for the page")]
+    categories: Annotated[List[str], Field(description="List of category names")]
+
+
+class PageInfo(BaseModel):
+    """Structured response returned when reading a page."""
+
+    id: Annotated[str, Field(description="MCP identifier for the page")]
+    type: Annotated[str, Field(description="MCP document type")]
+    name: Annotated[str, Field(description="Title of the page")]
+    content: Annotated[str, Field(description="Full wikitext of the page")]
+    metadata: Annotated[PageMetadata, Field(description="Additional page metadata")]
+
+
+class UpdateResult(BaseModel):
+    """Result returned after attempting to update a page."""
+
+    status: Annotated[str, Field(description="Outcome of the operation")]
+    title: Annotated[str, Field(description="Title of the affected page")]
+    url: Annotated[str | None, Field(default=None, description="URL of the page if saved")]
+    content: Annotated[str | None, Field(default=None, description="Content that would have been saved in dry-run mode")]
+    summary: Annotated[str | None, Field(default=None, description="Edit summary used")]
+
+
+class UpdatePageInput(BaseModel):
+    """Parameters for creating or editing a page."""
+
+    title: Annotated[str, Field(min_length=1, description="Title of the wiki page")]
+    content: Annotated[str, Field(description="Wikitext content to save to the page")]
+    summary: Annotated[str, Field(description="Edit summary for the change")]
+    dry_run: Annotated[bool, Field(False, description="Set to true to preview the edit without saving")]
 
 
 class SearchPagesInput(BaseModel):
@@ -67,59 +98,79 @@ mcp = FastMCP("mcp_mediawiki", streamable_http_path="/mcp")
 
 
 @mcp.resource("wiki://{title}")
-def get_page(title: str):
-    """Return the full wikitext and metadata for a page."""
+@mcp.tool(
+    description="Read a wiki page without modifying it. Returns the full wikitext and metadata."
+)
+def get_page(title: str) -> PageInfo:
+    """Fetch a wiki page for reading only.
+
+    This tool retrieves the entire wikitext of ``title`` along with useful
+    metadata such as namespace, length, last modification time and categories.
+    It **does not** edit the page. Use it whenever a user asks to view or read
+    a page.
+    """
     logger.info("get_page called", extra={"title": title})
     page = site.pages[title]
     if not page.exists:
         return {"error": f"Page '{title}' not found"}
 
     categories = [c.name for c in page.categories()]
-    info = {
-        "@id": f"wiki://{title}",
-        "@type": "Document",
-        "name": title,
-        "content": page.text(),
-        "metadata": {
-            "url": f"{SCHEME}://{HOST}{PATH}index.php/{title}",
-            "last_modified": next(page.revisions())["timestamp"],
-            "namespace": page.namespace,
-            "length": page.length,
-            "protection": page.protection,
-            "categories": categories,
-        },
-    }
+    info = PageInfo(
+        id=f"wiki://{title}",
+        type="Document",
+        name=title,
+        content=page.text(),
+        metadata=PageMetadata(
+            url=f"{SCHEME}://{HOST}{PATH}index.php/{title}",
+            last_modified=next(page.revisions())["timestamp"],
+            namespace=page.namespace,
+            length=page.length,
+            protection=page.protection,
+            categories=categories,
+        ),
+    )
     return info
 
 
-@mcp.tool(description="Create or edit a page with the provided content")
+@mcp.tool(
+    description=(
+        "Save wikitext to a page. Use only when explicitly instructed to write or update content."
+        " Set ``dry_run`` to preview without saving. Do not summarize or paraphrase into this tool."
+    )
+)
 def update_page(
     title: str,
     content: str,
     summary: str,
     dry_run: bool = False,
-):
-    """Create or update a wiki page."""
+) -> "UpdateResult":
+    """Create or update a wiki page.
+
+    This tool writes ``content`` directly to ``title`` with the provided
+    ``summary``. It should be invoked **only** when a user explicitly requests
+    that the page be saved. Setting ``dry_run=True`` will return the would-be
+    result without performing the save.
+    """
     params = UpdatePageInput(
         title=title, content=content, summary=summary, dry_run=dry_run
     )
     logger.info("update_page called", extra=params.model_dump())
 
     if params.dry_run:
-        return {
-            "status": "dry-run",
-            "title": params.title,
-            "content": params.content,
-            "summary": params.summary,
-        }
+        return UpdateResult(
+            status="dry-run",
+            title=params.title,
+            content=params.content,
+            summary=params.summary,
+        )
 
     page = site.pages[params.title]
     page.save(text=params.content, summary=params.summary)
-    return {
-        "status": "success",
-        "title": params.title,
-        "url": f"{SCHEME}://{HOST}/wiki/{params.title}",
-    }
+    return UpdateResult(
+        status="success",
+        title=params.title,
+        url=f"{SCHEME}://{HOST}/wiki/{params.title}",
+    )
 
 
 @mcp.tool(description="Search wiki pages by title keyword")
