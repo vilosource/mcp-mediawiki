@@ -26,21 +26,7 @@ up:
 # Run the Docker container in detached mode
 .PHONY: up-detached
 up-detached:
-	docker compose up -d
-
-# Run with custom arguments - example: make run-args ARGS="--api-host=mywiki.org --username=bot"
-.PHONY: run-args
-run-args:
-	@if [ -z "$(ARGS)" ]; then \
-		echo "Usage: make run-args ARGS=\"--api-host=mywiki.org --username=bot\""; \
-		exit 1; \
-	fi
-	docker run --rm -it -p 8000:8000 $(IMAGE) $(ARGS)
-
-# Run the Python script directly with arguments
-.PHONY: run-direct
-run-direct:
-	python mcp_mediawiki.py $(ARGS)
+       docker compose up -d
 
 # Run with interactive shell inside container
 .PHONY: shell
@@ -96,10 +82,8 @@ help:
 	@echo "Available targets:"
 	@echo "  make build        - Build the Docker image (tagged as $(IMAGE))"
 	@echo "  make up           - Start the container using docker-compose"
-	@echo "  make up-detached  - Start the container in detached mode"
-	@echo "  make run-args     - Run with custom arguments: make run-args ARGS=\"--api-host=wiki.example.org\""
-	@echo "  make run-direct   - Run Python script directly: make run-direct ARGS=\"--api-host=wiki.example.org\""
-	@echo "  make shell        - Start a shell in the Docker container"
+       @echo "  make up-detached  - Start the container in detached mode"
+       @echo "  make shell        - Start a shell in the Docker container"
 	@echo "  make network-info - Display Docker network information"
 	@echo "  make container-ip - Display container IP address information"
 	@echo "  make down         - Stop the running container"
