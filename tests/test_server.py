@@ -74,8 +74,8 @@ def test_root_endpoint(server):
 
 def test_get_page_success(server):
     result = server.get_page('Existing')
-    assert result['name'] == 'Existing'
-    assert result['metadata']['namespace'] == 0
+    assert result.name == 'Existing'
+    assert result.metadata.namespace == 0
 
 
 def test_get_page_not_found(server):
@@ -85,12 +85,12 @@ def test_get_page_not_found(server):
 
 def test_update_page_dry_run(server):
     result = server.update_page('Existing', 'new', 's', dry_run=True)
-    assert result['status'] == 'dry-run'
+    assert result.status == 'dry-run'
 
 
 def test_update_page_save(server):
     result = server.update_page('Existing', 'updated', 'sum')
-    assert result['status'] == 'success'
+    assert result.status == 'success'
     page = server.site.pages['Existing']
     assert page.saved and page.saved[-1] == ('updated', 'sum')
 
