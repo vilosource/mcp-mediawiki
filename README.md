@@ -15,59 +15,40 @@ The MediaWiki MCP (Model Context Protocol) server provides a structured interfac
 * Ensure clear, predictable API design
 * Avoid chunking; return full page content only
 
-## Functional Endpoints
+## Resources and Tools
 
-### 1. GET /v1/context
+This server exposes MCP resources and tools instead of traditional REST endpoints.
 
-Fetches the full content of a specified MediaWiki page.
+### `wiki://{title}`
 
-**Query Parameters:**
+Fetches the full content of the requested page title.
 
-* `title` *(required)*: Title of the page (e.g., `DevOps`)
-
-**Response:**
+Example response:
 
 ```json
-[
-  {
-    "id": "wiki:DevOps",
-    "name": "DevOps",
-    "content": "Full wikitext or rendered content...",
-    "metadata": {
-      "source": "wiki.example.com",
-      "url": "https://wiki.example.com/wiki/DevOps",
-      "last_modified": "2025-06-01T14:20:00Z",
-      "namespace": 0
-    }
+{
+  "id": "wiki:DevOps",
+  "name": "DevOps",
+  "content": "Full wikitext...",
+  "metadata": {
+    "source": "wiki.example.com",
+    "url": "https://wiki.example.com/wiki/DevOps",
+    "last_modified": "2025-06-01T14:20:00Z",
+    "namespace": 0
   }
-]
+}
 ```
 
-### 2. POST /v1/write
+### `update_page`
 
-Allows an authenticated client to update a wiki page using a bot account.
-
-**Headers:**
-
-* `Authorization: Bearer <token>`
-
-**Request Payload:**
+Tool for creating or editing pages. It requires a `token` parameter that must match the `MW_WRITE_TOKEN` environment variable.
 
 ```json
 {
   "title": "DevOps",
   "content": "== New Section ==\nContent here...",
-  "summary": "Updated based on discussion"
-}
-```
-
-**Response:**
-
-```json
-{
-  "status": "success",
-  "revision_id": 12345,
-  "url": "https://wiki.example.com/wiki/DevOps"
+  "summary": "Updated based on discussion",
+  "token": "<MW_WRITE_TOKEN>"
 }
 ```
 
@@ -155,7 +136,9 @@ def get_page(title: str):
     }
 
 @mcp.tool()
-def update_page(title: str, content: str, summary: str):
+def update_page(title: str, content: str, summary: str, token: str):
+    if token != os.environ.get("MW_WRITE_TOKEN"):
+        raise PermissionError("invalid token")
     page = site.pages[title]
     page.save(text=content, summary=summary)
     return {
