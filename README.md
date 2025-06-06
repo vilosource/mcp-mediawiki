@@ -1,297 +1,438 @@
-# MediaWiki MCP Server Specification
+# MediaWiki MCP Server
 
-## Overview
+A powerful Model Context Protocol (MCP) server that provides seamless integration between AI systems and MediaWiki instances. This server enables LLMs and automation tools to read, search, and edit wiki content through a standardized interface.
 
-The MediaWiki MCP (Model Context Protocol) server provides a structured interface for accessing and editing content on a local MediaWiki instance. It is designed for easy use by LLMs and other automation tools to fetch, process, and optionally update wiki content.
+## 🚀 Features
 
-## MediaWiki Endpoint
+- **Full Page Access**: Retrieve complete wiki page content without chunking
+- **Content Management**: Create, edit, and update wiki pages programmatically  
+- **Search Capabilities**: Search pages by title keywords
+- **Version History**: Access page revision history
+- **Docker Support**: Containerized deployment with auto-restart capabilities
+- **VS Code Integration**: Works seamlessly with VS Code's MCP extension
+- **Authentication**: Bot account support for secure API access
 
-* **Base URL**: Configurable via environment variables
+## 📋 Table of Contents
 
-## Goals
+- [Quick Start](#-quick-start)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Usage](#-usage)
+- [API Reference](#-api-reference)
+- [Development](#-development)
+- [Docker Deployment](#-docker-deployment)
+- [VS Code Integration](#-vs-code-integration)
+- [Contributing](#-contributing)
 
-* Serve full-page wiki content in response to LLM queries like "Get me wiki page DevOps"
-* Support editing pages with content generated from user interaction
-* Ensure clear, predictable API design
-* Avoid chunking; return full page content only
+## ⚡ Quick Start
 
-## Resources and Tools
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd mcp-mediawiki
+   ```
 
-This server exposes MCP resources and tools instead of traditional REST endpoints.
+2. **Set up environment**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your MediaWiki credentials
+   ```
 
-The server mounts its MCP transport at `/mcp` and the root route `/` returns a
-simple JSON health payload so VS Code's MCP extension can connect without 404
-errors.
+3. **Run with Docker** (recommended):
+   ```bash
+   docker-compose up --build
+   ```
 
-Available tools include:
+4. **Or run locally**:
+   ```bash
+   pip install -r requirements.txt
+   python mcp_mediawiki.py
+   ```
 
-* `update_page` – create or edit pages (supports optional `dry_run`)
-* `search_pages` – search pages by title keyword
-* `server_status` – show configuration and MediaWiki version
-* `get_page_history` – fetch recent revisions of a page
+5. **Test the server**:
+   ```bash
+   curl http://localhost:3000/
+   ```
 
-### `wiki://{title}`
+## 📦 Installation
 
-Fetches the full content of the requested page title.
+### Prerequisites
 
-Example response:
+- Python 3.12+
+- Docker (optional but recommended)
+- Access to a MediaWiki instance
 
-```json
-{
-  "@id": "wiki://DevOps",
-  "@type": "Document",
-  "name": "DevOps",
-  "content": "Full wikitext...",
-  "metadata": {
-    "source": "wiki.example.com",
-    "url": "https://wiki.example.com/wiki/DevOps",
-    "last_modified": "2025-06-01T14:20:00Z",
-    "namespace": 0
-  }
-}
+### Local Installation
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up environment variables
+cp .env.example .env
 ```
 
-### `update_page`
+### Docker Installation
 
-Tool for creating or editing pages. No authentication is required when running locally.
-
-```json
-{
-  "title": "DevOps",
-  "content": "== New Section ==\nContent here...",
-  "summary": "Updated based on discussion"
-}
+```bash
+# Build and run with Docker Compose
+docker-compose up --build -d
 ```
 
-## Authentication
+## ⚙️ Configuration
 
-This server runs locally so no additional authentication is required. It is
-recommended to create a bot account with write permissions configured in
-`LocalSettings.php`:
+Create a `.env` file in the project root with your MediaWiki instance details:
+
+```env
+# MediaWiki API Configuration
+MW_API_HOST=wiki.example.com
+MW_API_PATH=/wiki/
+MW_USE_HTTPS=true
+
+# Bot Account Credentials (optional but recommended)
+MW_BOT_USER=mcp-bot
+MW_BOT_PASS=secret-password
+
+# Server Configuration
+PORT=3000
+HOST=0.0.0.0
+```
+
+### Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `MW_API_HOST` | MediaWiki hostname | - | ✅ |
+| `MW_API_PATH` | MediaWiki API path | `/wiki/` | ❌ |
+| `MW_USE_HTTPS` | Use HTTPS for connections | `true` | ❌ |
+| `MW_BOT_USER` | Bot account username | - | ❌ |
+| `MW_BOT_PASS` | Bot account password | - | ❌ |
+| `PORT` | Server port | `3000` | ❌ |
+| `HOST` | Server host | `0.0.0.0` | ❌ |
+
+### MediaWiki Bot Setup
+
+For write operations, it's recommended to create a bot account with appropriate permissions:
 
 ```php
+# Add to LocalSettings.php
 $wgGroupPermissions['bot']['edit'] = true;
 $wgGroupPermissions['bot']['createpage'] = true;
 $wgGroupPermissions['bot']['writeapi'] = true;
 ```
 
-## Implementation Library
+## 🎯 Usage
 
-* **Preferred**: [MCP Python SDK](https://pypi.org/project/mcp/) for protocol-compliant integration
-* **mwclient**: Used internally for interacting with MediaWiki
+### Health Check
 
-## LLM-Friendly Design Considerations
+Test if the server is running:
 
-* Case-insensitive title matching
-* Clear errors with hints (`Page not found`, `Did you mean...?`)
-* Optional preview or diff endpoints
-* Explicit `operation` field in write payload (e.g., `append`, `replace`)
-* Help endpoint with prompt-to-API examples
-
-## Requirements
-
-### `requirements.txt`
-
-```txt
-mcp[cli]
-mwclient
-python-dotenv
+```bash
+curl http://localhost:3000/
 ```
 
-### `.env` file
-
-```env
-MW_API_HOST=wiki.example.com
-MW_API_PATH=/wiki/
-MW_USE_HTTPS=true
-MW_BOT_USER=mcp-bot
-MW_BOT_PASS=secret-password
+Expected response:
+```json
+{
+  "status": "healthy",
+  "service": "mcp-mediawiki",
+  "version": "1.0.0"
+}
 ```
 
-## Example Code (MCP SDK + environment variables only)
+### MCP Integration
 
-### `mcp_mediawiki.py`
+The server provides an MCP transport at `/mcp` for integration with MCP-compatible clients like VS Code extensions or AI assistants.
 
-```python
-import os
-import mwclient
-from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
+## 📚 API Reference
 
-load_dotenv()
+### Resources
 
-host = os.getenv("MW_API_HOST")
-path = os.getenv("MW_API_PATH", "/wiki/")
-scheme = "https" if os.getenv("MW_USE_HTTPS", "true").lower() == "true" else "http"
-user = os.getenv("MW_BOT_USER")
-password = os.getenv("MW_BOT_PASS")
+#### `wiki://{title}`
 
-site = mwclient.Site(host=host, path=path, scheme=scheme)
-if user and password:
-    site.login(user, password)
+Retrieves the complete content of a wiki page.
 
-mcp = FastMCP("mcp_mediawiki")
+**Example Request:**
+```
+GET wiki://DevOps
+```
 
-@mcp.resource("wiki://{title}")
-def get_page(title: str):
-    page = site.pages[title]
-    if not page.exists:
-        return {"error": f"Page '{title}' not found"}
-    return {
-        "@id": f"wiki://{title}",
-        "@type": "Document",
-        "name": title,
-        "content": page.text(),
-        "metadata": {
-            "url": f"{scheme}://{host}{path}index.php/{title}",
-            "last_modified": page.revisions().next()["timestamp"],
-            "namespace": page.namespace
-        }
+**Example Response:**
+```json
+{
+  "@id": "wiki://DevOps",
+  "@type": "Document", 
+  "name": "DevOps",
+  "content": "Full wikitext content...",
+  "metadata": {
+    "url": "https://wiki.example.com/wiki/DevOps",
+    "last_modified": "2025-06-06T14:20:00Z",
+    "namespace": 0,
+    "length": 5032,
+    "protection": {},
+    "categories": []
+  }
+}
+```
+
+### Tools
+
+#### `get_page`
+
+Retrieve the full content and metadata of a specific wiki page.
+
+**Parameters:**
+- `title` (string): The title of the wiki page
+
+#### `update_page`
+
+Create or edit a wiki page with new content.
+
+**Parameters:**
+- `title` (string): The title of the wiki page
+- `content` (string): The new content for the page
+- `summary` (string): Edit summary describing the changes
+
+**Example:**
+```json
+{
+  "title": "DevOps",
+  "content": "== Updated Section ==\nNew content here...",
+  "summary": "Updated DevOps documentation"
+}
+```
+
+#### `search_pages`
+
+Search for pages by title keywords.
+
+**Parameters:**
+- `query` (string): Search query
+- `limit` (integer, optional): Maximum number of results (default: 5)
+
+#### `get_page_history`
+
+Retrieve the revision history of a wiki page.
+
+**Parameters:**
+- `title` (string): The title of the wiki page
+- `limit` (integer, optional): Maximum number of revisions (default: 5)
+
+#### `server_status`
+
+Get basic server configuration and MediaWiki version information.
+
+## 🐳 Docker Deployment
+
+### Using Docker Compose (Recommended)
+
+The project includes a `docker-compose.yml` file for easy deployment:
+
+```yaml
+services:
+  mcp-mediawiki:
+    image: mcp-mediawiki:latest
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:8000"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      mcp_network:
+        ipv4_address: 192.168.170.2
+
+networks:
+  mcp_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.170.0/24
+          gateway: 192.168.170.1
+```
+
+**Start the service:**
+```bash
+docker-compose up -d --build
+```
+
+**View logs:**
+```bash
+docker-compose logs -f mcp-mediawiki
+```
+
+**Stop the service:**
+```bash
+docker-compose down
+```
+
+### Manual Docker Build
+
+```bash
+# Build the image
+docker build -t mcp-mediawiki .
+
+# Run the container
+docker run -d \
+  --name mcp-mediawiki \
+  --restart unless-stopped \
+  -p 3000:8000 \
+  --env-file .env \
+  mcp-mediawiki
+```
+
+## 🛠️ Development
+
+### Project Structure
+
+```
+mcp-mediawiki/
+├── docker-compose.yml      # Docker Compose configuration
+├── Dockerfile             # Docker image definition
+├── entrypoint.sh          # Container entrypoint script
+├── mcp_mediawiki.py       # Main server implementation
+├── requirements.txt       # Python dependencies
+├── settings.json          # MCP server settings
+├── .env.example          # Environment variables template
+├── tests/                # Test files
+│   └── test_server.py
+├── Makefile              # Development commands
+├── README.md             # This file
+├── Usage.md              # Detailed usage documentation
+└── LICENSE               # License file
+```
+
+### Local Development Setup
+
+1. **Clone and setup:**
+   ```bash
+   git clone <repository-url>
+   cd mcp-mediawiki
+   cp .env.example .env
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Run in development mode:**
+   ```bash
+   python mcp_mediawiki.py
+   ```
+
+4. **Run tests:**
+   ```bash
+   python -m pytest tests/
+   ```
+
+### Making Changes
+
+1. **Code formatting:**
+   ```bash
+   black mcp_mediawiki.py
+   ```
+
+2. **Linting:**
+   ```bash
+   flake8 mcp_mediawiki.py
+   ```
+
+3. **Type checking:**
+   ```bash
+   mypy mcp_mediawiki.py
+   ```
+
+### Available Make Commands
+
+```bash
+make build          # Build Docker image
+make run            # Run with Docker Compose
+make stop           # Stop Docker containers
+make logs           # View container logs
+make test           # Run tests
+make clean          # Clean up Docker resources
+```
+
+## 🔧 VS Code Integration
+
+### Setup in VS Code
+
+1. **Install the MCP extension** in VS Code
+2. **Add to your VS Code settings** (`settings.json`):
+
+```json
+{
+  "mcp.servers": {
+    "mediawiki": {
+      "command": "python",
+      "args": ["path/to/mcp-mediawiki/mcp_mediawiki.py"],
+      "env": {
+        "MW_API_HOST": "your-wiki-host.com",
+        "MW_API_PATH": "/wiki/",
+        "MW_USE_HTTPS": "true"
+      }
     }
-
-@mcp.tool(description="Create or edit a page with the provided content")
-def update_page(title: str, content: str, summary: str):
-    """Create or update a wiki page."""
-    page = site.pages[title]
-    page.save(text=content, summary=summary)
-    return {
-        "status": "success",
-        "title": title,
-        "url": f"{scheme}://{host}/wiki/{title}"
-    }
-
-if __name__ == "__main__":
-    mcp.run()
+  }
+}
 ```
+
+3. **Or use the Docker version:**
+
+```json
+{
+  "mcp.servers": {
+    "mediawiki": {
+      "transport": {
+        "type": "http",
+        "url": "http://localhost:3000/mcp"
+      }
+    }
+  }
+}
+```
+
+### Usage in VS Code
+
+Once configured, you can:
+
+- Ask the AI assistant to "Get the DevOps wiki page"
+- Request edits like "Update the API documentation page with new examples"
+- Search for pages: "Find all pages related to deployment"
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes and add tests
+4. Ensure all tests pass: `make test`
+5. Commit your changes: `git commit -m 'Add amazing feature'`
+6. Push to your branch: `git push origin feature/amazing-feature`
+7. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- **Issues**: Report bugs or request features on [GitHub Issues](issues)
+- **Documentation**: Check [Usage.md](Usage.md) for detailed examples
+- **Wiki**: Visit the project wiki for additional documentation
+
+## 🙏 Acknowledgments
+
+- [MCP Python SDK](https://pypi.org/project/mcp/) for the protocol implementation
+- [mwclient](https://github.com/mwclient/mwclient) for MediaWiki API integration
+- [FastAPI](https://fastapi.tiangolo.com/) for the web framework
 
 ---
 
-This server enables powerful integration between AI systems and MediaWiki content, with a focus on simplicity, full-page context, and safe edit capabilities. The MCP Python SDK ensures protocol compliance and standard integration behavior.
-
-
-🐳 Dockerfile
-Create a Dockerfile to containerize your application:
-
-Dockerfile
-Copy
-Edit
-FROM python:3.12-slim
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Set work directory
-WORKDIR /app
-
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy project
-COPY . .
-
-# Expose port
-EXPOSE 8000
-
-# Run the application with uvicorn
-CMD ["uvicorn", "mcp_mediawiki:app", "--host", "0.0.0.0", "--port", "8000"]
-This Dockerfile sets up a Python environment, installs dependencies, and runs your mcp_mediawiki application.
-
-### docker-compose.yml
-
-Use Docker Compose for easier local development:
-
-```yaml
-version: '3.9'
-services:
-  mcp-mediawiki:
-    build: .
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-```
-
-Start the server with:
-
-```bash
-docker compose up --build
-```
-services.duq.edu
-+2
-instructure.com
-+2
-csustan.edu
-+2
-
-🖥️ CLI Interface
-Implement a CLI using argparse to interact with your MCP server:
-
-python
-Copy
-Edit
-import argparse
-import requests
-
-def get_page(title):
-    response = requests.get(f"http://localhost:8000/v1/context?title={title}")
-    print(response.json())
-
-def update_page(title, content, summary):
-    payload = {
-        "title": title,
-        "content": content,
-        "summary": summary
-    }
-    response = requests.post("http://localhost:8000/v1/write", json=payload)
-    print(response.json())
-
-def main():
-    parser = argparse.ArgumentParser(description="MCP MediaWiki CLI")
-    subparsers = parser.add_subparsers(dest="command")
-
-    get_parser = subparsers.add_parser("get")
-    get_parser.add_argument("title", help="Title of the wiki page")
-
-    update_parser = subparsers.add_parser("update")
-    update_parser.add_argument("title", help="Title of the wiki page")
-    update_parser.add_argument("content", help="Content to update the page with")
-    update_parser.add_argument("summary", help="Edit summary")
-
-    args = parser.parse_args()
-
-    if args.command == "get":
-        get_page(args.title)
-    elif args.command == "update":
-        update_page(args.title, args.content, args.summary)
-
-if __name__ == "__main__":
-    main()
-This script allows you to fetch and update wiki pages via the command line.
-
-🔍 Additional Search Functionality
-Add a search endpoint to your FastAPI application:
-
-python
-Copy
-Edit
-from fastapi import FastAPI, Query
-from mediawiki_client import site
-
-app = FastAPI()
-
-@app.get("/v1/search")
-def search_pages(query: str = Query(..., min_length=1)):
-    results = site.search(query)
-    return [{"title": result["title"], "snippet": result["snippet"]} for result in results]
-This endpoint allows users to search for wiki pages matching a query string.
-
-
-
-## Using in VSCode
-
-1. Open the repository in VSCode.
-2. Copy `.env.example` to `.env` and supply your MediaWiki credentials.
-3. Run `python mcp_mediawiki.py` from the integrated terminal or use `docker compose up --build`. The server is served by **uvicorn**.
-4. Access `http://localhost:8000/` for a JSON health response. The MCP transport is available at `http://localhost:8000/mcp` which the extension uses automatically.
+**Made with ❤️ for the AI and MediaWiki communities**
