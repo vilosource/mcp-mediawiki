@@ -138,8 +138,9 @@ def get_page(title: str):
         }
     }
 
-@mcp.tool()
+@mcp.tool(description="Create or edit a page with the provided content")
 def update_page(title: str, content: str, summary: str):
+    """Create or update a wiki page."""
     page = site.pages[title]
     page.save(text=content, summary=summary)
     return {
