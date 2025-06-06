@@ -19,6 +19,17 @@ The MediaWiki MCP (Model Context Protocol) server provides a structured interfac
 
 This server exposes MCP resources and tools instead of traditional REST endpoints.
 
+The server mounts its MCP transport at `/mcp` and the root route `/` returns a
+simple JSON health payload so VS Code's MCP extension can connect without 404
+errors.
+
+Available tools include:
+
+* `update_page` – create or edit pages (supports optional `dry_run`)
+* `search_pages` – search pages by title keyword
+* `server_status` – show configuration and MediaWiki version
+* `get_page_history` – fetch recent revisions of a page
+
 ### `wiki://{title}`
 
 Fetches the full content of the requested page title.
@@ -283,4 +294,4 @@ This endpoint allows users to search for wiki pages matching a query string.
 1. Open the repository in VSCode.
 2. Copy `.env.example` to `.env` and supply your MediaWiki credentials.
 3. Run `python mcp_mediawiki.py` from the integrated terminal or use `docker compose up --build`. The server is served by **uvicorn**.
-4. Access the server at `http://localhost:8000`.
+4. Access `http://localhost:8000/` for a JSON health response. The MCP transport is available at `http://localhost:8000/mcp` which the extension uses automatically.
