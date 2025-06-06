@@ -23,17 +23,17 @@ MW_WRITE_TOKEN=changeme
 ## Running the server
 
 ```bash
-docker run --env-file .env -p 8000:8000 mcp-mediawiki
+docker run --env-file .env mcp-mediawiki
 ```
 
-The server exposes these endpoints:
-
-- `GET /v1/context?title=Page` – fetch page content
-- `GET /v1/search?query=term` – search pages
-- `POST /v1/write` – update a page (requires `Authorization: Bearer $MW_WRITE_TOKEN`)
-
-## Example request
+Interact with the server using the `mcp` CLI. Fetch a page with:
 
 ```bash
-curl "http://localhost:8000/v1/context?title=Main_Page"
+mcp read wiki://Main_Page
+```
+
+Update a page using the `update_page` tool:
+
+```bash
+mcp run update_page --title Main_Page --content "New text" --summary "bot edit" --token "$MW_WRITE_TOKEN"
 ```
