@@ -1,7 +1,9 @@
 import os
 import sys
+import time
 import logging
 from typing import Annotated, List, Dict
+from datetime import datetime
 
 from dotenv import load_dotenv
 import mwclient
@@ -44,44 +46,11 @@ def get_site() -> mwclient.Site:
 site = get_site()
 
 
-class PageMetadata(BaseModel):
-    """Metadata describing a wiki page."""
-
-    url: Annotated[str, Field(description="Direct URL to the page")]
-    last_modified: Annotated[str, Field(description="Timestamp of the last revision")]
-    namespace: Annotated[int, Field(description="Namespace identifier")]
-    length: Annotated[int, Field(description="Size of the page in bytes")]
-    protection: Annotated[Dict, Field(description="Protection settings for the page")]
-    categories: Annotated[List[str], Field(description="List of category names")]
-
-
-class PageInfo(BaseModel):
-    """Structured response returned when reading a page."""
-
-    id: Annotated[str, Field(description="MCP identifier for the page")]
-    type: Annotated[str, Field(description="MCP document type")]
-    name: Annotated[str, Field(description="Title of the page")]
-    content: Annotated[str, Field(description="Full wikitext of the page")]
-    metadata: Annotated[PageMetadata, Field(description="Additional page metadata")]
-
-
-class UpdateResult(BaseModel):
-    """Result returned after attempting to update a page."""
-
-    status: Annotated[str, Field(description="Outcome of the operation")]
-    title: Annotated[str, Field(description="Title of the affected page")]
-    url: Annotated[str | None, Field(default=None, description="URL of the page if saved")]
-    content: Annotated[str | None, Field(default=None, description="Content that would have been saved in dry-run mode")]
-    summary: Annotated[str | None, Field(default=None, description="Edit summary used")]
-
-
 class UpdatePageInput(BaseModel):
-    """Parameters for creating or editing a page."""
-
-    title: Annotated[str, Field(min_length=1, description="Title of the wiki page")]
-    content: Annotated[str, Field(description="Wikitext content to save to the page")]
-    summary: Annotated[str, Field(description="Edit summary for the change")]
-    dry_run: Annotated[bool, Field(False, description="Set to true to preview the edit without saving")]
+    title: Annotated[str, Field(min_length=1, description="Wiki page title")]
+    content: Annotated[str, Field(description="Wikitext content to save")]
+    summary: Annotated[str, Field(description="Edit summary")]
+    dry_run: Annotated[bool, Field(False, description="Preview the edit without saving")]
 
 
 class SearchPagesInput(BaseModel):
@@ -92,90 +61,84 @@ class PageHistoryInput(BaseModel):
     title: Annotated[str, Field(min_length=1, description="Page title")]
     limit: Annotated[int, Field(5, ge=1, le=50, description="Number of revisions to fetch")]
 
-# Mount the Streamable HTTP server at /mcp so the root path can
-# return a simple JSON health response for VS Code and other tools.
+
+class PageMetadata(BaseModel):
+    url: str
+    last_modified: str  # ISO 8601
+    namespace: int
+    length: int
+    protection: Dict[str, List[str]]
+    categories: List[str]
+
+
+class PageInfo(BaseModel):
+    title: str
+    content: str
+    metadata: PageMetadata
+
+
+# Mount the Streamable HTTP server at /mcp
 mcp = FastMCP("mcp_mediawiki", streamable_http_path="/mcp")
 
 
-@mcp.resource("wiki://{title}")
-@mcp.tool(
-    description="Read a wiki page without modifying it. Returns the full wikitext and metadata."
-)
+@mcp.tool(description="Retrieve the full content and metadata of a MediaWiki page.")
 def get_page(title: str) -> PageInfo:
-    """Fetch a wiki page for reading only.
-
-    This tool retrieves the entire wikitext of ``title`` along with useful
-    metadata such as namespace, length, last modification time and categories.
-    It **does not** edit the page. Use it whenever a user asks to view or read
-    a page.
-    """
-    logger.info("get_page called", extra={"title": title})
+    logger.info("get_page tool called", extra={"title": title})
     page = site.pages[title]
     if not page.exists:
-        return {"error": f"Page '{title}' not found"}
+        raise ValueError(f"Page '{title}' not found")
 
+    first_rev = next(page.revisions())
     categories = [c.name for c in page.categories()]
-    info = PageInfo(
-        id=f"wiki://{title}",
-        type="Document",
-        name=title,
+    last_modified = first_rev["timestamp"]
+    if isinstance(last_modified, time.struct_time):
+        last_modified = datetime(*last_modified[:6]).isoformat()
+
+    return PageInfo(
+        title=title,
         content=page.text(),
         metadata=PageMetadata(
             url=f"{SCHEME}://{HOST}{PATH}index.php/{title}",
-            last_modified=next(page.revisions())["timestamp"],
+            last_modified=last_modified,
             namespace=page.namespace,
             length=page.length,
             protection=page.protection,
             categories=categories,
-        ),
+        )
     )
-    return info
 
 
-@mcp.tool(
-    description=(
-        "Save wikitext to a page. Use only when explicitly instructed to write or update content."
-        " Set ``dry_run`` to preview without saving. Do not summarize or paraphrase into this tool."
-    )
-)
+@mcp.tool(description="Create or edit a page with the provided content. \u26a0\ufe0f Use ONLY when explicitly asked to save new content.")
 def update_page(
     title: str,
     content: str,
     summary: str,
     dry_run: bool = False,
-) -> "UpdateResult":
-    """Create or update a wiki page.
-
-    This tool writes ``content`` directly to ``title`` with the provided
-    ``summary``. It should be invoked **only** when a user explicitly requests
-    that the page be saved. Setting ``dry_run=True`` will return the would-be
-    result without performing the save.
-    """
+):
+    logger.info("update_page called", extra={"title": title, "summary": summary})
     params = UpdatePageInput(
         title=title, content=content, summary=summary, dry_run=dry_run
     )
-    logger.info("update_page called", extra=params.model_dump())
 
     if params.dry_run:
-        return UpdateResult(
-            status="dry-run",
-            title=params.title,
-            content=params.content,
-            summary=params.summary,
-        )
+        return {
+            "status": "dry-run",
+            "title": params.title,
+            "content": params.content,
+            "summary": params.summary,
+        }
 
     page = site.pages[params.title]
     page.save(text=params.content, summary=params.summary)
-    return UpdateResult(
-        status="success",
-        title=params.title,
-        url=f"{SCHEME}://{HOST}/wiki/{params.title}",
-    )
+    return {
+        "status": "success",
+        "title": params.title,
+        "url": f"{SCHEME}://{HOST}/wiki/{params.title}",
+    }
 
 
 @mcp.tool(description="Search wiki pages by title keyword")
 def search_pages(query: str, limit: int = 5):
-    """Search pages by title."""
     params = SearchPagesInput(query=query)
     logger.info("search_pages called", extra=params.model_dump())
     results = site.search(params.query, limit=limit)
@@ -187,7 +150,6 @@ def search_pages(query: str, limit: int = 5):
 
 @mcp.tool(description="Get basic server configuration and version info")
 def server_status():
-    """Return server configuration details."""
     logger.info("server_status called")
     version = site.site_info.get("generator")
     return {
@@ -198,9 +160,8 @@ def server_status():
     }
 
 
-@mcp.tool(description="Get the last N revisions of a page")
+@mcp.tool(description="Get the wiki page revision history")
 def get_page_history(title: str, limit: int = 5):
-    """Return recent revision history for a page."""
     params = PageHistoryInput(title=title, limit=limit)
     logger.info("get_page_history called", extra=params.model_dump())
     page = site.pages[params.title]
@@ -223,7 +184,6 @@ app = mcp.streamable_http_app()
 
 @app.route("/", methods=["GET"])
 async def root(request) -> JSONResponse:
-    """Return server health information."""
     logger.info("root endpoint called")
     return JSONResponse(
         {

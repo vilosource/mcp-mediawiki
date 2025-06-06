@@ -26,7 +26,7 @@ up:
 # Run the Docker container in detached mode
 .PHONY: up-detached
 up-detached:
-       docker compose up -d
+	docker compose up -d
 
 # Run with interactive shell inside container
 .PHONY: shell
@@ -82,8 +82,8 @@ help:
 	@echo "Available targets:"
 	@echo "  make build        - Build the Docker image (tagged as $(IMAGE))"
 	@echo "  make up           - Start the container using docker-compose"
-       @echo "  make up-detached  - Start the container in detached mode"
-       @echo "  make shell        - Start a shell in the Docker container"
+	@echo "  make up-detached  - Start the container in detached mode"
+	@echo "  make shell        - Start a shell in the Docker container"
 	@echo "  make network-info - Display Docker network information"
 	@echo "  make container-ip - Display container IP address information"
 	@echo "  make down         - Stop the running container"
