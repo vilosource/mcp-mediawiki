@@ -34,7 +34,9 @@ def get_site() -> mwclient.Site:
 
 site = get_site()
 
-mcp = FastMCP("mcp_mediawiki")
+# Mount the Streamable HTTP server at the root path so VS Code can
+# communicate with the server without additional configuration.
+mcp = FastMCP("mcp_mediawiki", streamable_http_path="/")
 
 
 @mcp.resource("wiki://{title}")
