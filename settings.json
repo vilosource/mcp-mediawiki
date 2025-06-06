@@ -1,0 +1,17 @@
+{
+  "mcp.servers": [
+    {
+      "id": "mcp-mediawiki",
+      "name": "MediaWiki MCP",
+      "type": "command",
+      "command": "python mcp_mediawiki.py"
+    },
+    {
+      "id": "docker-mcp-mediawiki",
+      "name": "Docker MediaWiki MCP",
+      "type": "command",
+      "command": "docker-compose up --build"
+    }
+  ],
+  "mcp.activeServer": "mcp-mediawiki"
+}

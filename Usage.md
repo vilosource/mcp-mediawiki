@@ -8,6 +8,11 @@ This guide explains how to build and run the dockerised MCP MediaWiki server.
 docker build -t mcp-mediawiki .
 ```
 
+You can also use the Makefile:
+```bash
+make build
+```
+
 ## Environment variables
 Create a `.env` file with your MediaWiki details:
 
@@ -18,6 +23,52 @@ MW_USE_HTTPS=true
 MW_BOT_USER=mcp-bot
 MW_BOT_PASS=secret-password
 ```
+
+## Network Configuration
+
+The Docker Compose configuration creates a custom network with the 192.168.169.0/24 subnet. The MCP server container is assigned a static IP address of 192.168.169.2. This allows the container to communicate with networks that might otherwise be inaccessible due to Docker's default networking.
+
+To view network information:
+```bash
+make network-info
+```
+
+To check the container's IP address:
+```bash
+make container-ip
+```
+
+If you need to modify the network configuration, edit the `docker-compose.yml` file and adjust the subnet and IP address settings.
+
+## Command Line Arguments
+
+As an alternative to environment variables, you can also pass configuration options as command line arguments:
+
+```bash
+python mcp_mediawiki.py --api-host=wiki.example.com --api-path=/w/ --username=mcp-bot --password=secret-password --use-https=true
+```
+
+When using Docker, you can pass these arguments to the container:
+
+```bash
+docker run -p 8000:8000 mcp-mediawiki --api-host=wiki.example.com --username=mcp-bot
+```
+
+Or use the Makefile for convenience:
+
+```bash
+make run-args ARGS="--api-host=wiki.example.com --username=mcp-bot"
+```
+
+The following arguments are supported:
+
+- `--api-host`: MediaWiki API hostname
+- `--api-path`: MediaWiki API path
+- `--username`: Bot username
+- `--password`: Bot password
+- `--use-https`: Use HTTPS connection (`true` or `false`)
+
+Command line arguments take precedence over environment variables.
 
 ## Running the server
 
