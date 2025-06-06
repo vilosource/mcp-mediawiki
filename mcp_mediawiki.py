@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import mwclient
 from pydantic import BaseModel, Field
 from mcp.server.fastmcp import FastMCP
+from starlette.responses import JSONResponse
 import uvicorn
 
 # Configure logging
@@ -169,15 +170,17 @@ def get_page_history(title: str, limit: int = 5):
 app = mcp.streamable_http_app()
 
 
-@app.get("/")
-def root() -> dict[str, str]:
+@app.route("/", methods=["GET"])
+async def root(request) -> JSONResponse:
     """Return server health information."""
     logger.info("root endpoint called")
-    return {
-        "status": "ok",
-        "server": "mcp-mediawiki",
-        "streamable_http_path": "/mcp",
-    }
+    return JSONResponse(
+        {
+            "status": "ok",
+            "server": "mcp-mediawiki",
+            "streamable_http_path": "/mcp",
+        }
+    )
 
 
 if __name__ == "__main__":

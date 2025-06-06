@@ -2,3 +2,4 @@ mcp[cli]
 mwclient
 python-dotenv
 uvicorn
+pytest
