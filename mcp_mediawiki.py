@@ -162,15 +162,29 @@ mcp = FastMCP(
 )
 
 
+class WikiPageNotFoundError(Exception):
+    """Raised when a wiki page is not found."""
+    pass
+
+
+class WikiOperationError(Exception):
+    """Raised when a wiki operation fails."""
+    pass
+
+
 @mcp.tool(description="Retrieve the full content and metadata of a MediaWiki page.")
-def get_page(title: str) -> PageInfo | dict:
+def get_page(title: str) -> PageInfo:
     """Get a wiki page by title.
 
     Args:
         title: The exact title of the wiki page
 
     Returns:
-        PageInfo with content and metadata, or error dict if not found
+        PageInfo with content and metadata
+
+    Raises:
+        WikiPageNotFoundError: If the page doesn't exist
+        WikiOperationError: If there's an error accessing the wiki
     """
     logger.info(f"get_page called: title={title}")
 
@@ -180,7 +194,7 @@ def get_page(title: str) -> PageInfo | dict:
 
         if not page.exists:
             logger.warning(f"Page not found: {title}")
-            return {"error": f"Page '{title}' not found"}
+            raise WikiPageNotFoundError(f"Page '{title}' not found")
 
         first_rev = next(page.revisions())
         categories = [c.name for c in page.categories()]
@@ -201,9 +215,11 @@ def get_page(title: str) -> PageInfo | dict:
                 categories=categories,
             ),
         )
+    except WikiPageNotFoundError:
+        raise  # Re-raise our custom exception
     except Exception as e:
         logger.error(f"Error getting page '{title}': {e}")
-        return {"error": str(e)}
+        raise WikiOperationError(f"Failed to get page '{title}': {e}")
 
 
 @mcp.tool(
@@ -214,7 +230,7 @@ def update_page(
     content: str,
     summary: str,
     dry_run: bool = False,
-) -> UpdatePageResponse | dict:
+) -> UpdatePageResponse:
     """Save a new version of a MediaWiki page.
 
     Args:
@@ -225,6 +241,9 @@ def update_page(
 
     Returns:
         UpdatePageResponse with status
+
+    Raises:
+        WikiOperationError: If there's an error updating the page
     """
     logger.info(f"update_page called: title={title}, summary={summary}, dry_run={dry_run}")
 
@@ -248,7 +267,7 @@ def update_page(
         )
     except Exception as e:
         logger.error(f"Error updating page '{title}': {e}")
-        return {"error": str(e)}
+        raise WikiOperationError(f"Failed to update page '{title}': {e}")
 
 
 @mcp.tool(description="Search wiki pages by title keyword")
@@ -264,6 +283,9 @@ def search_pages(
 
     Returns:
         Dict with 'results' list containing matching pages with title and snippet
+
+    Raises:
+        WikiOperationError: If there's an error searching the wiki
     """
     logger.info(f"search_pages called: query={query}, limit={limit}")
 
@@ -279,14 +301,14 @@ def search_pages(
         }
     except Exception as e:
         logger.error(f"Error searching for '{query}': {e}")
-        return {"error": str(e)}
+        raise WikiOperationError(f"Failed to search wiki: {e}")
 
 
 @mcp.tool(description="Get the revision history of a wiki page")
 def get_page_history(
     title: str = Field(description="Page title"),
     limit: int = Field(default=5, ge=1, le=50, description="Number of revisions to fetch"),
-) -> list | dict:
+) -> list:
     """Get the revision history of a wiki page.
 
     Args:
@@ -295,6 +317,10 @@ def get_page_history(
 
     Returns:
         List of revisions with user, timestamp, and comment
+
+    Raises:
+        WikiPageNotFoundError: If the page doesn't exist
+        WikiOperationError: If there's an error accessing the wiki
     """
     logger.info(f"get_page_history called: title={title}, limit={limit}")
 
@@ -303,7 +329,7 @@ def get_page_history(
         page = site.pages[title]
 
         if not page.exists:
-            return {"error": f"Page '{title}' not found"}
+            raise WikiPageNotFoundError(f"Page '{title}' not found")
 
         revisions = [
             {
@@ -315,9 +341,11 @@ def get_page_history(
             for rev in page.revisions(limit=limit)
         ]
         return revisions
+    except WikiPageNotFoundError:
+        raise  # Re-raise our custom exception
     except Exception as e:
         logger.error(f"Error getting history for '{title}': {e}")
-        return {"error": str(e)}
+        raise WikiOperationError(f"Failed to get page history for '{title}': {e}")
 
 
 @mcp.tool(description="Get MediaWiki server status and configuration info")
