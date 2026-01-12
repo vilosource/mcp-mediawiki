@@ -1,5 +1,7 @@
-mcp[cli]
-mwclient
-python-dotenv
-uvicorn
-pytest
+fastmcp>=2.3.4
+mcp>=1.8.0,<2.0.0
+pydantic>=2.0.0
+mwclient>=0.10.1
+python-dotenv>=1.0.1
+click>=8.0.0
+pytest>=8.0.0

@@ -1,15 +1,14 @@
 #!/bin/bash
 set -e
 
-echo "Starting entrypoint.sh"
+echo "Starting mcp-mediawiki entrypoint"
 
+# Default to running with arguments passed to container
+# If no arguments, run with default stdio transport
 if [ $# -eq 0 ]; then
-    # No command-line arguments, run FastMCP server directly
-    echo "Starting FastMCP server..."
-    # Run with the -u flag for unbuffered output
+    echo "No arguments provided, starting with stdio transport"
     exec python -u mcp_mediawiki.py
 else
-    # Run with arguments passed to docker run/compose
-    echo "Running with custom arguments: $@"
-    exec "$@"
+    echo "Starting with arguments: $@"
+    exec python -u mcp_mediawiki.py "$@"
 fi
