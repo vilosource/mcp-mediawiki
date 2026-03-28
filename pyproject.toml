@@ -14,8 +14,8 @@ dependencies = [
 ]
 
 [[project.authors]]
-name = "OptiscanGroup"
-email = "jason.viloria@optiscangroup.com"
+name = "Viloforge"
+email = "jason.viloria@viloforge.com"
 
 [build-system]
 requires = ["hatchling"]
