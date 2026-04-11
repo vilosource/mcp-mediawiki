@@ -17,6 +17,9 @@ dependencies = [
 name = "Viloforge"
 email = "jason.viloria@viloforge.com"
 
+[project.scripts]
+mcp-mediawiki = "mcp_mediawiki:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
